@@ -1,3 +1,9 @@
+from flask import Flask, jsonify
+import requests
+from bs4 import BeautifulSoup
+
+app = Flask(__name__)  # <-- This line must come before any route definitions
+
 @app.route("/kern-flow.json")
 def kern_flow():
     url = "https://www.dreamflows.com/flows.php?zone=canv&page=real&form=norm&mark=All"
@@ -30,3 +36,6 @@ def kern_flow():
                     flows[key] = None
 
     return jsonify(flows)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
