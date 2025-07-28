@@ -1,41 +1,35 @@
 from flask import Flask, jsonify
 import requests
-from bs4 import BeautifulSoup
+import csv
+import io
 
-app = Flask(__name__)  # <-- This line must come before any route definitions
+app = Flask(__name__)
 
 @app.route("/kern-flow.json")
 def kern_flow():
-    url = "https://www.dreamflows.com/flows.php?zone=canv&page=real&form=norm&mark=All"
-    r = requests.get(url)
-    soup = BeautifulSoup(r.text, "html.parser")
+    url = "https://www.dreamflows.com/realtime.csv.php"
+    response = requests.get(url)
+    response.raise_for_status()
 
-    target_sites = {
-        "above_fairview": "Kern - Above Fairview Dam",
-        "below_fairview": "Kern - Below Fairview Dam",
-        "below_lake_isabella": "Kern - Below Lake Isabella"
+    csv_file = io.StringIO(response.text)
+    reader = csv.DictReader(csv_file)
+
+    kern_data = {
+        "above_fairview": None,
+        "below_fairview": None,
+        "below_lake_isabella": None
     }
 
-    flows = {}
-    table = soup.find("table", {"border": "1"})
-    if not table:
-        return jsonify({"error": "Could not find flow table."})
+    for row in reader:
+        site = row["Site Name"].lower()
+        flow = row["Flow"]
 
-    rows = table.find_all("tr")
-    for row in rows:
-        cols = row.find_all("td")
-        if len(cols) < 2:
-            continue
-        site_name = cols[0].get_text(strip=True)
-        for key, label in target_sites.items():
-            if label.lower() in site_name.lower():
-                try:
-                    cfs = int(cols[1].get_text(strip=True).replace(",", ""))
-                    flows[key] = cfs
-                except:
-                    flows[key] = None
+        if "kern" in site:
+            if "above fairview" in site:
+                kern_data["above_fairview"] = flow
+            elif "below fairview" in site:
+                kern_data["below_fairview"] = flow
+            elif "below lake isabella" in site:
+                kern_data["below_lake_isabella"] = flow
 
-    return jsonify(flows)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    return jsonify(kern_data)
